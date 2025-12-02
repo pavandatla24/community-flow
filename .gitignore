@@ -1,0 +1,30 @@
+# Node
+
+frontend/node_modules/
+
+**/node_modules/
+
+# Python
+
+venv/
+
+.venv/
+
+__pycache__/
+
+*.pyc
+
+# Environment variables
+
+*.env
+
+.env
+
+# OS files
+
+.DS_Store
+
+# Build artifacts
+
+frontend/build/
+
