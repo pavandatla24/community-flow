@@ -288,17 +288,6 @@ See `docs/ETHICS.md` for full ethical guidelines.
 
 ---
 
-## License
-
-[Add your license here]
-
----
-
-## Contributing
-
-[Add contribution guidelines here]
-
----
-
 **Built with ❤️ for Chicago's wellness community**
+
 
