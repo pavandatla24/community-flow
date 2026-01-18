@@ -1,52 +1,80 @@
-import { useEffect, useState } from "react";
-import { apiGet } from "./services/api";
+// import { useEffect, useState } from "react";
+// import { apiGet } from "./services/api";
 
-function App() {
-  const [health, setHealth] = useState(null);
-  const [themesData, setThemesData] = useState(null);
-  const [error, setError] = useState("");
+// function App() {
+//   const [health, setHealth] = useState(null);
+//   const [themesData, setThemesData] = useState(null);
+//   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const h = await apiGet("/health");
-        setHealth(h);
+//   useEffect(() => {
+//     async function load() {
+//       try {
+//         const h = await apiGet("/health");
+//         setHealth(h);
 
-        const t = await apiGet("/themes");
-        setThemesData(t);
-      } catch (e) {
-        setError(e.message || String(e));
-      }
-    }
-    load();
-  }, []);
+//         const t = await apiGet("/themes");
+//         setThemesData(t);
+//       } catch (e) {
+//         setError(e.message || String(e));
+//       }
+//     }
+//     load();
+//   }, []);
 
+//   return (
+//     <div style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
+//       <h1>Community Flow</h1>
+
+//       {error ? (
+//         <div style={{ color: "red" }}>
+//           <h3>Error</h3>
+//           <pre>{error}</pre>
+//           <p>
+//             Make sure backend is running on <code>127.0.0.1:8000</code> and CORS
+//             is enabled.
+//           </p>
+//         </div>
+//       ) : (
+//         <>
+//           <h3>Backend Health</h3>
+//           <pre>{health ? JSON.stringify(health, null, 2) : "Loading..."}</pre>
+
+//           <h3>Themes Summary</h3>
+//           <pre>
+//             {themesData ? JSON.stringify(themesData, null, 2) : "Loading..."}
+//           </pre>
+//         </>
+//       )}
+//     </div>
+//   );
+// }
+
+// export default App;
+// frontend/src/App.js
+
+// frontend/src/App.js
+
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import NavBar from "./components/NavBar";
+
+import HomePage from "./pages/HomePage";
+import ClustersPage from "./pages/ClustersPage";
+import MapPage from "./pages/MapPage";
+import ReportPage from "./pages/ReportPage";
+
+export default function App() {
   return (
-    <div style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
-      <h1>Community Flow</h1>
+    <BrowserRouter>
+      <NavBar />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/clusters" element={<ClustersPage />} />
+        <Route path="/map" element={<MapPage />} />
+        <Route path="/report" element={<ReportPage />} />
 
-      {error ? (
-        <div style={{ color: "red" }}>
-          <h3>Error</h3>
-          <pre>{error}</pre>
-          <p>
-            Make sure backend is running on <code>127.0.0.1:8000</code> and CORS
-            is enabled.
-          </p>
-        </div>
-      ) : (
-        <>
-          <h3>Backend Health</h3>
-          <pre>{health ? JSON.stringify(health, null, 2) : "Loading..."}</pre>
-
-          <h3>Themes Summary</h3>
-          <pre>
-            {themesData ? JSON.stringify(themesData, null, 2) : "Loading..."}
-          </pre>
-        </>
-      )}
-    </div>
+        {/* fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App;

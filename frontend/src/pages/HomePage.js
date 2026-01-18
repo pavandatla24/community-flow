@@ -77,7 +77,11 @@ export default function HomePage() {
       </header>
 
       <section style={styles.grid}>
-        <StatCard title="Total Articles" value={totalArticles} subtitle="Current weekly snapshot" />
+        <StatCard
+          title="Total Articles"
+          value={totalArticles}
+          subtitle="Current weekly snapshot"
+        />
         <StatCard
           title="Top Theme"
           value={topTheme ? `Theme ${topTheme.id}` : "—"}
