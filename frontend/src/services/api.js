@@ -15,10 +15,25 @@ async function get(path, params = {}) {
   return res.json();
 }
 
+async function getBlob(path, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const url = `${API_BASE_URL}${path}${qs ? `?${qs}` : ""}`;
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GET ${url} failed: ${res.status} ${text}`);
+  }
+  return res.blob();
+}
+
 export const api = {
   health: () => get("/health"),
   themes: () => get("/themes"),
   clusters: (params) => get("/clusters", params || {}),
   mapData: (params) => get("/map-data", params || {}),
   reportData: (params) => get("/report-data", params || {}),
+
+  // ✅ ADD THIS
+  reportPdf: (params) => getBlob("/report-pdf", params || {}),
 };

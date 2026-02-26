@@ -28,6 +28,7 @@ import { api } from "../services/api";
 
 export default function ReportPage() {
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   const [report, setReport] = useState(null);
 
@@ -54,6 +55,28 @@ export default function ReportPage() {
     return () => (mounted = false);
   }, []);
 
+  // ✅ REAL PDF DOWNLOAD
+  const handleDownloadPDF = async () => {
+    try {
+      setDownloading(true);
+      const blob = await api.reportPdf(); // calls /report-pdf
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "community_flow_weekly_report.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "PDF download failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) return <div style={styles.page}>Loading…</div>;
 
   if (error) {
@@ -69,8 +92,8 @@ export default function ReportPage() {
     <div style={styles.page}>
       <h2 style={{ marginTop: 0 }}>Weekly Report</h2>
       <div style={styles.muted}>
-        This page uses <code>/report-data</code>. PDF generation will be added in
-        Module E.
+        This page uses <code>/report-data</code>. PDF is generated from{" "}
+        <code>/report-pdf</code>.
       </div>
 
       <div style={styles.card}>
@@ -99,12 +122,15 @@ export default function ReportPage() {
 
         <div style={{ marginTop: 16 }}>
           <button
-            style={styles.button}
-            onClick={() =>
-              alert("PDF download will be implemented in Module E.")
-            }
+            style={{
+              ...styles.button,
+              opacity: downloading ? 0.7 : 1,
+              cursor: downloading ? "not-allowed" : "pointer",
+            }}
+            onClick={handleDownloadPDF}
+            disabled={downloading}
           >
-            Download Weekly Report (PDF) — coming in Module E
+            {downloading ? "Downloading PDF…" : "Download Weekly Report (PDF)"}
           </button>
         </div>
       </div>
@@ -152,7 +178,6 @@ const styles = {
     padding: "12px 14px",
     background: "#111827",
     color: "#fff",
-    cursor: "pointer",
     fontWeight: 800,
   },
 };

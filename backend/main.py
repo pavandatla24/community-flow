@@ -6,7 +6,7 @@ from backend.routers import themes
 from backend.routers import clusters
 from backend.routers import map_data
 from backend.routers import report_data
-
+from backend.routers import report_pdf
 
 app = FastAPI(
     title="Community Flow Backend",
@@ -42,6 +42,7 @@ app.include_router(themes.router)
 app.include_router(clusters.router)
 app.include_router(map_data.router)
 app.include_router(report_data.router)
+app.include_router(report_pdf.router)
 
 @app.get("/")
 def root():
