@@ -544,3 +544,172 @@ So the flow is:
 google_topics.json → app.state.articles (memory) → API endpoints → Frontend
 ```
 
+---
+
+## Simple Step-by-Step Flow (Run Book)
+
+### Big picture (one sentence)
+
+You start by scraping Google News into JSON files, run a small offline NLP pipeline to produce `data/cleaned/google_topics.json`, the FastAPI backend loads that file into memory at startup and exposes insights via APIs, and the React frontend (plus the PDF endpoint) just reads from those APIs.
+
+### 1. Scraping – get raw data
+
+- **File:** `scraper/scrape_google_rss.py`
+- **How to run:**
+  ```bash
+  python scraper/scrape_google_rss.py
+  ```
+- **What it does:**
+  - Calls Google News RSS for Chicago wellness content.
+  - Extracts `title`, `text/description`, `date`, `link`, `source`, `neighborhood`.
+  - **Output:** writes a raw JSON file like `data/raw/google_rss_2025-12-04.json`.
+
+### 2. Clean text – make the text usable
+
+- **File:** `scripts/clean_text.py`
+- **How to run:**
+  ```bash
+  python scripts/clean_text.py
+  ```
+- **What it does:**
+  - Reads the raw JSON from `data/raw/...`.
+  - Removes HTML tags and entities, normalizes whitespace.
+  - **Output:** `data/clean/google_clean.json`.
+
+### 3. Keyword extraction – add `clean_text` + `keywords`
+
+- **File:** `scripts/clean_google_clean_json.py`
+- **How to run:**
+  ```bash
+  python scripts/clean_google_clean_json.py
+  ```
+- **What it does:**
+  - Reads `data/clean/google_clean.json`.
+  - Creates:
+    - `clean_text`: normalized lowercase text.
+    - `keywords`: list of important words.
+  - **Output:** `data/clean/google_step2.json`.
+
+### 4. Theme labeling – attach the 6 wellness themes
+
+- **File:** `scripts/label_data_google.py`
+- **How to run:**
+  ```bash
+  python scripts/label_data_google.py
+  ```
+- **What it does:**
+  - Reads `data/clean/google_step2.json`.
+  - Looks at `clean_text` and matches keyword rules for the six themes:
+    - Stress Relief + Burnout Recovery
+    - Body Love + Self-Image
+    - Movement Access + Beginner-Friendly
+    - Cultural / Spiritual Connection
+    - Financial Access + Mutual Aid
+    - Community Care + Solidarity
+  - Adds a `themes` field like `[1, 4]` to each item.
+  - **Output:** `data/labeled/google_labeled.json`.
+
+### 5. Topic modeling – build clusters and final dataset
+
+- **Folder:** `nlp/`
+- **File:** `nlp/topic_model.py`
+- **How to run:**
+  ```bash
+  python nlp/topic_model.py
+  ```
+- **What it does:**
+  - Reads `data/labeled/google_labeled.json`.
+  - Uses TF-IDF + KMeans to group articles into topic clusters.
+  - Adds `topic_id` (0–5) to each item.
+  - **Output (final master file):** `data/cleaned/google_topics.json`.
+
+`data/cleaned/google_topics.json` is the single source of truth that powers the backend, frontend, and PDF.
+
+### 6. Backend startup – load the data once
+
+- **Files:** `backend/utils/data_loader.py`, `backend/main.py`
+- **How to run the backend:**
+  ```bash
+  python -m uvicorn backend.main:app --reload
+  ```
+- **What happens:**
+  - `data_loader.get_data_file_path()` points to `data/cleaned/google_topics.json`.
+  - `data_loader.load_articles()` reads that JSON and returns a list of articles.
+  - `backend/main.py` runs on startup:
+    ```python
+    @app.on_event("startup")
+    async def startup_event():
+        app.state.articles = load_articles()
+    ```
+  - All routers can now access the dataset via `request.app.state.articles`.
+
+### 7. Backend endpoints – compute insights from `app.state.articles`
+
+All routers live under `backend/routers/` and read from `app.state.articles`:
+
+- **`/themes`** – theme distribution  
+  - **File:** `backend/routers/themes.py`
+  - Counts theme occurrences.
+
+- **`/clusters`** – topic clusters  
+  - **File:** `backend/routers/clusters.py`
+  - Groups by `topic_id`, counts items, computes top keywords per cluster.
+
+- **`/map-data`** – neighborhood view  
+  - **File:** `backend/routers/map_data.py`
+  - Groups by `neighborhood` and returns per-neighborhood stats.
+
+- **`/report-data`** – summary payload for dashboard/report  
+  - **File:** `backend/routers/report_data.py`
+  - Uses `backend/utils/report_builder.py` to compute:
+    - `theme_distribution`
+    - `top_clusters`
+    - `latest_items`
+    - `total_articles`.
+
+- **`/report-pdf`** – weekly PDF download (Module E)  
+  - **File:** `backend/routers/report_pdf.py`
+  - Flow:
+    - Calls `build_report_data(...)` to get the same payload as `/report-data`.
+    - Passes that into `backend/utils/pdf_service.py → generate_weekly_report_pdf(report_data)`.
+    - `pdf_service` uses `reportlab` to generate the PDF bytes.
+    - Returns a `StreamingResponse` with `application/pdf` and a filename.
+
+### 8. Frontend – fetch from APIs and render UI
+
+- **API service:** `frontend/src/services/api.js`
+  - Base URL: `http://127.0.0.1:8000` (or from `REACT_APP_API_BASE_URL`).
+  - Functions:
+    - `api.themes()` → `GET /themes`
+    - `api.clusters()` → `GET /clusters`
+    - `api.reportData({ limit, sort })` → `GET /report-data`
+    - `api.mapData(neighborhood)` → `GET /map-data`
+    - `api.health()` → `GET /health`
+
+- **Home page:** `frontend/src/pages/HomePage.js`
+  - On mount, `useEffect` calls:
+    ```javascript
+    const [themesRes, reportRes, clustersRes] = await Promise.all([
+      api.themes(),
+      api.reportData({ limit: 5, sort: "date_desc" }),
+      api.clusters(),
+    ]);
+    ```
+  - Updates React state with the responses.
+  - Renders stat cards, latest items, top clusters, and theme distribution pills.
+
+- **PDF usage in frontend:**
+  - The UI can call `/report-pdf` (for example via a button/link) to trigger download of the weekly PDF report.
+
+### 9. Automation & deployment (future)
+
+- **Module F (Automation):**
+  - Plan: GitHub Action or script in `automation/` to run:
+    - Scraper → clean → keywords → themes → topics.
+  - Produces a fresh `data/cleaned/google_topics.json` on a schedule.
+
+- **Module G (Deployment):**
+  - Plan: deploy FastAPI backend (e.g., Render) and React frontend (e.g., Vercel).
+  - Same flow as above, just running in the cloud instead of locally.
+
+
